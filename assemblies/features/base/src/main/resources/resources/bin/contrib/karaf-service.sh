@@ -19,19 +19,21 @@
 function usage {
     cat <<-END >&2
     USAGE: $0
-        -k KARAF_SERVICE_PATH       # Karaf installation path
-        -d KARAF_SERVICE_DATA       # Karaf data path (default to \${KARAF_SERVICE_PATH}/data)
-        -c KARAF_SERVICE_CONF       # Karaf configuration file (default to \${KARAF_SERVICE_PATH/etc/\${KARAF_SERVICE_NAME}.conf
-        -t KARAF_SERVICE_ETC        # Karaf etc path (default to \${KARAF_SERVICE_PATH/etc}
-        -p KARAF_SERVICE_PIDFILE    # Karaf pid path (default to \${KARAF_SERVICE_DATA}/\${KARAF_SERVICE_NAME}.pid)
-        -n KARAF_SERVICE_NAME       # Karaf service name (default karaf)
-        -e KARAF_ENV                # Karaf environment variable (can be repeated)
-        -u KARAF_SERVICE_USER       # Karaf user
-        -g KARAF_SERVICE_GROUP      # Karaf group (default \${KARAF_SERVICE_USER)
-        -l KARAF_SERVICE_LOG        # Karaf console log (default to \${KARAF_SERVICE_DATA}/log/\${KARAF_SERVICE_NAME}-console.log)
-        -f KARAF_SERVICE_TEMPLATE   # Template file to use
-        -x KARAF_SERVICE_EXECUTABLE # Karaf executable name (defaul karaf, should support daemon and stop commands)
-        -h                          # this usage message
+        -k KARAF_SERVICE_PATH             # Karaf installation path
+        -d KARAF_SERVICE_DATA             # Karaf data path (default to \${KARAF_SERVICE_PATH}/data)
+        -c KARAF_SERVICE_CONF             # Karaf configuration file (default to \${KARAF_SERVICE_PATH/etc/\${KARAF_SERVICE_NAME}.conf
+        -t KARAF_SERVICE_ETC              # Karaf etc path (default to \${KARAF_SERVICE_PATH/etc}
+        -p KARAF_SERVICE_PIDFILE          # Karaf pid path (default to \${KARAF_SERVICE_PATH}/karaf.pid)
+        -n KARAF_SERVICE_NAME             # Karaf service name (default karaf)
+        -e KARAF_ENV                      # Karaf environment variable (can be repeated)
+        -u KARAF_SERVICE_USER             # Karaf user
+        -g KARAF_SERVICE_GROUP            # Karaf group (default \${KARAF_SERVICE_USER)
+        -l KARAF_SERVICE_LOG              # Karaf console log (default to \${KARAF_SERVICE_DATA}/log/\${KARAF_SERVICE_NAME}-console.log)
+        -f KARAF_SERVICE_TEMPLATE         # Template file to use
+        -r KARAF_SERVICE_START_COMMAND    # Karaf start command (defaul start)
+        -s KARAF_SERVICE_STOP_COMMAND     # Karaf stop command (defaul stop)
+        -i KARAF_SERVICE_INSTANCE_COMMAND # Karaf instance command (defaul instance)
+        -h                                # this usage message
 END
     exit
 }
@@ -50,7 +52,7 @@ SOLARIS_SMF_TEMPLATE="karaf-service-template.solaris-smf"
 
 KARAF_ENV=()
 
-while getopts k:d:c:p:n:u:g:l:t:e:f:x:h opt
+while getopts k:d:c:p:n:u:g:l:t:e:f:r:s:i:h opt
 do
     case $opt in
     k)  export KARAF_SERVICE_PATH="$OPTARG" ;;
@@ -63,7 +65,9 @@ do
     l)  export KARAF_SERVICE_LOG="$OPTARG" ;;
     t)  export KARAF_SERVICE_ETC="$OPTARG" ;;
     f)  export KARAF_SERVICE_TEMPLATE="$OPTARG" ;;
-    x)  export KARAF_SERVICE_EXECUTABLE="$OPTARG" ;;
+    r)  export KARAF_SERVICE_START_COMMAND="$OPTARG" ;;
+    s)  export KARAF_SERVICE_STOP_COMMAND="$OPTARG" ;;
+    i)  export KARAF_SERVICE_INSTANCE_COMMAND="$OPTARG" ;;
     e)  KARAF_ENV+=("$OPTARG") ;;
     h|?) usage ;;
     esac
@@ -93,7 +97,7 @@ if [[ ! $KARAF_SERVICE_CONF ]]; then
 fi
 
 if [[ ! $KARAF_SERVICE_PIDFILE ]]; then
-    export KARAF_SERVICE_PIDFILE="${KARAF_SERVICE_DATA}/${KARAF_SERVICE_NAME}.pid"
+    export KARAF_SERVICE_PIDFILE="${KARAF_SERVICE_PATH}/karaf.pid"
 fi
 
 if [[ ! $KARAF_SERVICE_LOG ]]; then
@@ -108,8 +112,16 @@ if [[ ! $KARAF_SERVICE_GROUP ]]; then
     export KARAF_SERVICE_GROUP="${KARAF_SERVICE_USER}"
 fi
 
-if [[ ! $KARAF_SERVICE_EXECUTABLE ]]; then
-    export KARAF_SERVICE_EXECUTABLE="karaf"
+if [[ ! $KARAF_SERVICE_START_COMMAND ]]; then
+    export KARAF_SERVICE_START_COMMAND="start"
+fi
+
+if [[ ! $KARAF_SERVICE_STOP_COMMAND ]]; then
+    export KARAF_SERVICE_STOP_COMMAND="stop"
+fi
+
+if [[ ! $KARAF_SERVICE_INSTANCE_COMMAND ]]; then
+    export KARAF_SERVICE_INSTANCE_COMMAND="instance"
 fi
 
 ################################################################################

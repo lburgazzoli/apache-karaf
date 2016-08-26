@@ -20,9 +20,10 @@
 # pidfile: ${KARAF_SERVICE_PIDFILE}
 # config: ${KARAF_SERVICE_CONF}
 #
-
 if [ -r "${KARAF_SERVICE_CONF}" ]; then
+    set -o allexport
     . "${KARAF_SERVICE_CONF}"
+    set +o allexport
 else
     echo "Error KARAF_SERVICE_CONF not defined"
     exit -1
@@ -50,103 +51,155 @@ if [ -z "$SHUTDOWN_WAIT" ]; then
     SHUTDOWN_WAIT=30
 fi
 
-prog=${KARAF_SERVICE_NAME}
-
-do_start() {
-    echo "Starting $prog: "
+do_check_status() {
     if [ -f "$KARAF_SERVICE_PIDFILE" ]; then
         read ppid < "$KARAF_SERVICE_PIDFILE"
         if [ `ps -p $ppid 2> /dev/null | grep -c $ppid 2> /dev/null` -eq '1' ]; then
-            echo "$prog is already running"
+            return 0
+        else
             return 1
-        else
-            rm -f "$KARAF_SERVICE_PIDFILE"
         fi
     fi
 
-    LOG_PATH=`dirname "$KARAF_SERVICE_LOG"`
-    mkdir -p "$LOG_PATH"
-    cat /dev/null > "$KARAF_SERVICE_LOG"
-    chown $KARAF_SERVICE_USER:$KARAF_SERVICE_GROUP  "$KARAF_SERVICE_LOG"
+    return 3
+}
 
-    PID_PATH=`dirname "$KARAF_SERVICE_PIDFILE"`
-    mkdir -p "$PID_PATH"
-    chown $KARAF_SERVICE_USER:$KARAF_SERVICE_GROUP "$PID_PATH" || true
+do_start() {
+    echo -n "Starting $KARAF_SERVICE_NAME: "
 
-    if [ ! -z "$KARAF_SERVICE_USER" ]; then
-        if [ "$KARAF_SERVICE_USER" = "root" ]; then
-            KARAF_EXEC=exec 
-            export KARAF_EXEC
+    do_check_status
+    status_start=$?
 
-            JAVA_HOME=$JAVA_HOME 
-            export JAVA_HOME
+    if [ $status_start -eq 3 ]; then
 
-            "$KARAF_SERVICE_PATH/bin/$KARAF_SERVICE_EXECUTABLE" daemon >> "$KARAF_SERVICE_LOG" 2>&1 &
+        # Console log
+        LOG_PATH=$(dirname "$KARAF_SERVICE_LOG")
+        if [ ! -d "$LOG_PATH" ]; then
+            mkdir -p "$LOG_PATH"
 
-            echo $! > "$KARAF_SERVICE_PIDFILE"
-        else
-            su - $KARAF_SERVICE_USER \
-                -c " { export KARAF_EXEC=exec; export JAVA_HOME=$JAVA_HOME; \"$KARAF_SERVICE_PATH/bin/$KARAF_SERVICE_EXECUTABLE\" daemon >> \"$KARAF_SERVICE_LOG\" 2>&1 & } ; echo \$! >| \"$KARAF_SERVICE_PIDFILE\" "
+            chown $KARAF_SERVICE_USER:$KARAF_SERVICE_GROUP "$LOG_PATH"
+            chown $KARAF_SERVICE_USER:$KARAF_SERVICE_GROUP "$KARAF_SERVICE_LOG"
         fi
 
-        sleep 1
-        if [ -f "$KARAF_SERVICE_PIDFILE" ]; then
-            chown $KARAF_SERVICE_USER:$KARAF_SERVICE_GROUP "$KARAF_SERVICE_PIDFILE"
+        if [ ! -z "$KARAF_SERVICE_USER" ]; then
+            if [ "$KARAF_SERVICE_USER" = "root" ]; then
+                KARAF_EXEC=exec 
+                export KARAF_EXEC
+
+                JAVA_HOME=$JAVA_HOME 
+                export JAVA_HOME
+
+                "$KARAF_SERVICE_PATH/bin/$KARAF_SERVICE_START_COMMAND"
+            else
+                su - $KARAF_SERVICE_USER \
+                    -c " export JAVA_HOME=$JAVA_HOME; \"$KARAF_SERVICE_PATH/bin/$KARAF_SERVICE_START_COMMAND\""
+            fi
+
+            let count=0
+            let kwait=$STARTUP_WAIT
+
+            # Waith untill the process has been started, max STARTUP_WAIT seconds
+            while [ $count -lt $kwait ]; do
+                do_check_status
+                status_start=$?
+
+                if [ $status_start -eq 3 ]; then
+                    sleep 1
+                    let count=$count+1;
+                elif [ $status_start -eq 0 ]; then
+                    echo -n "OK"
+                    echo
+                    exit 0
+                fi
+            done
+
+            do_check_status
+            status_start=$?
+
+            if [ $status_start -eq 0 ]; then
+                echo "$KARAF_SERVICE_NAME hasn't started within the timeout allowed."
+                echo
+                exit 0
+            else
+                echo "$KARAF_SERVICE_NAME failed to start within the timeout allowed."
+                echo
+                exit 1
+            fi         
         fi
+    else 
+        $0 status
     fi
-
-    RETVAL=$?
-    return $RETVAL
 }
 
 do_stop() {
-    echo $"Stopping $prog: "
-    count=0;
+    echo -n "Stopping $KARAF_SERVICE_NAME: "
 
-    if [ -f "$KARAF_SERVICE_PIDFILE" ]; then
+    do_check_status
+    status_stop=$?
+
+    if [ $status_stop -eq 0 ]; then
         read kpid < "$KARAF_SERVICE_PIDFILE"
-        kwait=$SHUTDOWN_WAIT
+
+        let count=0
+        let kwait=$SHUTDOWN_WAIT
 
         if [ "$KARAF_SERVICE_USER" = "root" ]; then
             JAVA_HOME=$JAVA_HOME
             export JAVA_HOME
 
-            "$KARAF_SERVICE_PATH/bin/$KARAF_SERVICE_EXECUTABLE" stop >> "$KARAF_SERVICE_LOG" 2>&1
+            "$KARAF_SERVICE_PATH/bin/$KARAF_SERVICE_STOP_COMMAND" > /dev/null 2>&1
         else
             su - $KARAF_SERVICE_USER \
-                -c "export JAVA_HOME=$JAVA_HOME; \"$KARAF_SERVICE_PATH/bin/$KARAF_SERVICE_EXECUTABLE\" stop >> \"$KARAF_SERVICE_LOG\" 2>&1"
+                -c "export JAVA_HOME=$JAVA_HOME; \"$KARAF_SERVICE_PATH/bin/$KARAF_SERVICE_STOP_COMMAND\"" \
+            > /dev/null 2>&1
         fi 
 
-        until [ `ps -p $kpid 2> /dev/null | grep -c $kpid 2> /dev/null` -eq '0' ] || [ $count -gt $kwait ]
-        do
-            sleep 1
-            count=`expr $count + 1`
-        done
+        until [ $status_stop -eq 0 ] && [ $count -lt $kwait ]; do
+            do_check_status
+            status_stop=$?
 
-        if [ $count -gt $kwait ]; then
-            if [ `ps -p $kpid 2> /dev/null | grep -c $kpid 2> /dev/null` -eq '1' ]; then
-                kill -9 $kpid
+            if [ $status_stop -eq 0 ]; then
+                sleep 1
+                let count=$count+1;
+            else
+                break
             fi
+        done
+        
+        do_check_status
+        status_stop=$?
+
+        if [ $status_stop -eq 0 ]; then
+            kill -9 $kpid
         fi
+
+        echo "OK"
+    elif [ $status_stop -eq 1 ]; then
+        echo "$KARAF_SERVICE_NAME dead but pid file exists, cleaning up"
+    elif [ $status_stop -eq 3 ]; then
+        echo "$KARAF_SERVICE_NAME is already stopped"
     fi
 
     rm -f "$KARAF_SERVICE_PIDFILE"
-    rm -f $KARAF_LOCKFILE
 }
 
 do_status() {
-    if [ -f "$KARAF_SERVICE_PIDFILE" ]; then
-        read ppid < "$KARAF_SERVICE_PIDFILE"
-        if [ `ps -p $ppid 2> /dev/null | grep -c $ppid 2> /dev/null` -eq '1' ]; then
-            echo "$prog is running (pid $ppid)"
-            return 0
-        else
-            echo "$prog dead but pid file exists"
-            return 1
-        fi
+    do_check_status
+    status=$?
+    if [ $status -eq 0 ]; then
+        read pid < $KARAF_SERVICE_PIDFILE
+        echo "$KARAF_SERVICE_NAME is running with pid $pid"
+        exit 0
+    elif [ $status -eq 1 ]; then
+        echo "$KARAF_SERVICE_NAME is not running and the pid file exists"
+        exit 1
+    elif [ $status -eq 3 ]; then
+        echo "$KARAF_SERVICE_NAME is not running"
+        exit 3
+    else
+        echo "Unable to determine $KARAF_SERVICE_NAME status"
+        exit 4
     fi
-    echo "$prog is not running"
-    return 3
 }
 
 case "$1" in

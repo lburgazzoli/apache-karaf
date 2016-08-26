@@ -21,13 +21,12 @@ After=syslog.target network.target
 Requires=${KARAF_SERVICE_NAME}.service
 
 [Service]
-EnvironmentFile=-${KARAF_SERVICE_PATH}/etc/${KARAF_SERVICE_NAME}-%i.conf
-EnvironmentFile=-${KARAF_SERVICE_PATH}/instances/%i/etc/${KARAF_SERVICE_NAME}.conf
-Environment=KARAF_HOME=${KARAF_SERVICE_PATH}
-Environment=KARAF_BASE=${KARAF_SERVICE_PATH}/instances/%i
+EnvironmentFile=${KARAF_SERVICE_PATH}/instances/%i/etc/${KARAF_SERVICE_NAME}-%i.conf
 
-ExecStart=${KARAF_SERVICE_PATH}/bin/${KARAF_SERVICE_EXECUTABLE} daemon
-ExecStop=${KARAF_SERVICE_PATH}/bin/${KARAF_SERVICE_EXECUTABLE} stop
+Type=forking
+PIDFile=${KARAF_SERVICE_PATH}/instances/%i/karaf.pid
+ExecStart=${KARAF_SERVICE_PATH}/bin/${KARAF_SERVICE_INSTANCE_COMMAND} start %i
+ExecStop=${KARAF_SERVICE_PATH}/bin/${KARAF_SERVICE_INSTANCE_COMMAND} stop %i
 
 User=${KARAF_SERVICE_USER}
 Group=${KARAF_SERVICE_GROUP}

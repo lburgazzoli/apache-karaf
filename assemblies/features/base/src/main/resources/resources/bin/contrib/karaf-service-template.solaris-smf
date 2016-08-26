@@ -38,7 +38,9 @@
         <method_context>
             <method_credential user='${KARAF_SERVICE_USER}' group='${KARAF_SERVICE_GROUP}'/>
             <method_environment>
-                <envvar name="JAVA_HOME" value="${JAVA_HOME}"/>
+                <envvar name="JAVA_HOME"      value="${JAVA_HOME}"/>
+                <envvar name="KARAF_EXEC"     value="exec"/>
+                <envvar name="KARAF_REDIRECT" value="${KARAF_SERVICE_LOG}"/>
             </method_environment>
         </method_context>
 
@@ -50,14 +52,14 @@
             timeout_seconds="60"
             type="method"
             name="start"
-            exec="${KARAF_SERVICE_PATH}/bin/${KARAF_SERVICE_EXECUTABLE} daemon &amp;">
+            exec="${KARAF_SERVICE_PATH}/bin/${KARAF_SERVICE_START_COMMAND}">
         </exec_method>
 
         <exec_method
             timeout_seconds="60"
             type="method"
             name="stop"
-            exec="${KARAF_SERVICE_PATH}/bin/${KARAF_SERVICE_EXECUTABLE} stop">
+            exec="${KARAF_SERVICE_PATH}/bin/${KARAF_SERVICE_STOP_COMMAND}">
         </exec_method>
 
         <!-- *************************************************************** -->

@@ -17,32 +17,70 @@
 <service>
   
   <!--
-    This script is provided as a template you can quckly customize by replacing 
-    the following variables:
-
-      KARAF_SERVICE_NAME
-      KARAF_SERVICE_PATH
-      KARAF_SERVICE_EXECUTABLE
-
     For a detailed overview of the confguration options, please visit winsw home
     page (https://github.com/kohsuke/winsw)
   -->
 
-  <id>%KARAF_SERVICE_NAME%</id>
-  <name>%KARAF_SERVICE_NAME%</name>
-  <description>Apache Karaf %KARAF_SERVICE_NAME%</description>
+  <id>karaf-service</id>
+  <name>karaf-service</name>
+  <description>Apache Karaf Servie</description>
 
-  <!-- start -->
-  <executable>%KARAF_SERVICE_PATH%\bin\%KARAF_SERVICE_EXECUTABLE%</executable>
-  <startargument>daemon</startargument>
+  <env name="JAVA_HOME"    value=""/>
+  <env name="KARAF_HOME"   value=""/>
+  <env name="KARAF_BASE"   value="%KARAF_HOME%"/>
+  <env name="KARAF_DATA"   value="%KARAF_BASE%/data"/>
+  <env name="KARAF_ETC"    value="%KARAF_BASE%/etc"/>
+  <env name="JAVA_MIN_MEM" value="128M"/>
+  <env name="JAVA_MAX_MEM" value="512M"/>
+
+  <!-- ********************************************************************* -->
+  <!-- START                                                                 -->
+  <!-- ********************************************************************* -->
+
+  <executable>%JAVA_HOME%\bin\java</executable>
+  <startargument>-server</startargument>
+  <startargument>-XX:+UnlockDiagnosticVMOptions</startargument>
+  <startargument>-XX:+UnsyncloadClass</startargument>
+  <startargument>-Xms%JAVA_MIN_MEM%</startargument>
+  <startargument>-Xmx%JAVA_MAX_MEM%</startargument>
+  <startargument>-classpath</startargument>
+  <startargument>"%KARAF_HOME%\lib\boot\*"</startargument>
+  <startargument>-Djava.endorsed.dirs="%JAVA_HOME%\jre\lib\endorsed;%JAVA_HOME%\lib\endorsed;%KARAF_HOME%\lib\endorsed"</startargument>
+  <startargument>-Djava.ext.dirs="%JAVA_HOME%\jre\lib\ext;%JAVA_HOME%\lib\ext;%KARAF_HOME%\lib\ext"</startargument>
+  <startargument>-Djava.io.tmpdir="%KARAF_DATA%\tmp"</startargument>
+  <startargument>-Djava.util.logging.config.file="%KARAF_BASE%\etc\java.util.logging.properties"</startargument>
+  <startargument>-Djava.library.path="%KARAF_BASE%\lib;%KARAF_HOME%\lib"</startargument>
+  <startargument>-Dkaraf.home="%KARAF_HOME%"</startargument>
+  <startargument>-Dkaraf.base="%KARAF_BASE%"</startargument>
+  <startargument>-Dkaraf.data="%KARAF_DATA%"</startargument>
+  <startargument>-Dkaraf.etc="%KARAF_ETC%"</startargument>
+  <startargument>-Dkaraf.instances="%KARAF_HOME%\instances"</startargument>
+  <startargument>-Dkaraf.startLocalConsole=false</startargument>
+  <startargument>-Dkaraf.startRemoteShell=true</startargument>
+  <startargument>-Dkaraf.restart.jvm.supported=false</startargument>
+
+  <!-- jmx -->
+  <startargument>-Dcom.sun.management.jmxremote</startargument>
+
+  <!-- Uncomment to enable jmx
+  <startargument>-Dcom.sun.management.jmxremote.port=1616</startargument>
+  <startargument>-Dcom.sun.management.jmxremote.authenticate=false</startargument>
+  <startargument>-Dcom.sun.management.jmxremote.ssl=false/startargument</startargument>
+  -->
+
+  <!-- Main -->
+  <startargument>org.apache.karaf.main.Main</startargument>
   
-  <!-- stop -->
-  <stopexecutable>%KARAF_SERVICE_PATH%\bin\%KARAF_SERVICE_EXECUTABLE%</stopexecutable>
+  <!-- ********************************************************************* -->
+  <!-- STOP                                                                  -->
+  <!-- ********************************************************************* -->
+  
+  <stopexecutable>%KARAF_BASE%\bin\karaf.bat</stopexecutable>
   <stopargument>stop</stopargument>
   <stoptimeout>10sec</stoptimeout>
 
   <!-- logging -->  
-  <logpath>%KARAF_SERVICE_PATH%\data\log</logpath>  
+  <logpath>%KARAF_BASE%\data\log</logpath>  
   <log mode="roll-by-time">
     <pattern>yyyyMMdd</pattern>
   </log>
